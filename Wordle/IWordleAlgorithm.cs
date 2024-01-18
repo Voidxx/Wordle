@@ -8,6 +8,10 @@ namespace Wordle
 {
     internal interface IWordleAlgorithm
     {
-        string GuessWord(List<LetterResult> feedback);
+        string EliminateImpossibleWords(List<LetterResult> feedback);
+
+        string FocusOnConfirmingLetters(List<LetterResult> feedback);
+
+        string LastChanceGuess(List<LetterResult> feedback);
     }
 }

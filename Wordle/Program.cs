@@ -1,51 +1,89 @@
-﻿using Wordle;
+﻿using Fleck;
+using Newtonsoft.Json;
+using Wordle;
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Threading.Tasks;
+using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 
 internal class Program
 {
-    private static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        WordleAgent agent1 = new WordleAgent();
-        WordleAgent agent2 = new WordleAgent();
+        // Start the WebSocket server
+        Task serverTask = Task.Run(() => GameServer.main(args));
 
-        gameLoop(agent1, agent2);
+        // Initialize the two agents
+        HubConnection connection1 = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5000/gamehub")
+            .Build();
+
+        await connection1.StartAsync();
+
+        WordleAgent agent1 = new WordleAgent(connection1, 1);
+
+        HubConnection connection2 = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5000/gamehub")
+            .Build();
+
+        await connection2.StartAsync();
+
+        WordleAgent agent2 = new WordleAgent(connection2, 2);
+
+        // Initialize counters for each agent
+        int agent1Wins = 0;
+        int agent2Wins = 0;
+
+        // Initialize switch variable
+        bool switchAgents = false;
+
+        // Start the game loop
+        await gameLoop(agent1, agent2, agent1Wins, agent2Wins, switchAgents);
+
+        // Stop the WebSocket server
+        await serverTask;
     }
 
-
-    static void gameLoop(WordleAgent agent1, WordleAgent agent2)
+    static async Task gameLoop(WordleAgent agent1, WordleAgent agent2, int agent1Wins, int agent2Wins, bool switchAgents)
     {
-        string winner = null;
-        while (winner == null)
+        bool winner = false;
+        while ((agent1Wins < 2) && (agent2Wins < 2))
         {
-            // Agent 1 selects a word
-            string wordToGuess = agent1.possibleWords[new Random().Next(agent1.possibleWords.Count)];
-            agent1.targetWord = wordToGuess;
-            Console.WriteLine("agent 1 je odabrao riječ: " + wordToGuess);
+            WordleAgent currentAgent = switchAgents ? agent1 : agent2;
+            WordleAgent opponentAgent = switchAgents ? agent2 : agent1;
+
+            // Select a word for the current agent
+            string wordToGuess = currentAgent.possibleWords[new Random().Next(currentAgent.possibleWords.Count)];
+            currentAgent.targetWord = wordToGuess;
+            await currentAgent._connection.InvokeAsync("SetTargetWord", wordToGuess);
+            Console.WriteLine("Agent " + (currentAgent.id) +" selected word: " + wordToGuess);
+
+            // Switch roles
+            switchAgents = !switchAgents;
+
             string guess;
             do
             {
                 Thread.Sleep(1000);
-                // Agent 2 tries to guess the word
-                guess = agent2.GenerateGuess();
-                List<LetterResult> feedback = new List<LetterResult>();
-                feedback = agent1.ReceiveFeedback(guess);
-                foreach(LetterResult letterResult in feedback)
+                // Current agent tries to guess the word
+                guess = await currentAgent.GenerateGuess();
+                List<LetterResult> feedback = await opponentAgent.ReceiveFeedback();
+                foreach (LetterResult letterResult in feedback)
                 {
-                    agent2.feedbackHistory.Add(letterResult);
+                    currentAgent.feedbackHistory.Add(letterResult);
                 }
-                Console.WriteLine("agent 2 pogađa sa riječi: " + guess);
+                Console.WriteLine("Agent " + (opponentAgent.id) +" guesses: " + guess);
                 Console.WriteLine("-------------------------");
                 foreach (LetterResult item in feedback)
                 {
-  
-
                     if (item.Exists == true && item.Position == true)
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.Write("[" + item.Letter + "] ");
                         Console.ResetColor();
                     }
-                    else if(item.Exists == true && item.Position == false) 
+                    else if (item.Exists == true && item.Position == false)
                     {
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.Write("[" + item.Letter + "] ");
@@ -60,19 +98,55 @@ internal class Program
                 }
                 Console.WriteLine("");
 
-                // Check if Agent 2 has guessed the word
+                // Check if the current agent has guessed the word
                 if (guess == wordToGuess)
                 {
-                    winner = "Agent 2";
+                    winner = true;
+                    // If the current agent is agent1, increment agent1Wins
+                    // Otherwise, increment agent2Wins
+                    if (switchAgents)
+              {
+                        agent1Wins++;
+                    }
+              else
+                    {
+                        agent2Wins++;
+                    }
                 }
-            } while (guess != wordToGuess);
 
-            // Switch roles
-            WordleAgent temp = agent1;
-            agent1 = agent2;
-            agent2 = temp;
+            } while (guess != wordToGuess && currentAgent.guessCount < WordleAgent.guessLimit);
+            if (winner == false)
+            {
+                Console.WriteLine("Agent " + (opponentAgent.id) + "loses round.");
+            }
+            else
+            {
+                Console.WriteLine("Agent " + (opponentAgent.id) + "wins round!.");
+                winner = false;
+            }
+            cleanUpHistoryOfAgents(currentAgent, opponentAgent);
         }
 
-        Console.WriteLine($"{winner} wins!");
+        // Determine the final winner
+        if (agent1Wins > agent2Wins)
+        {
+            Console.WriteLine("Agent 1 wins!");
+
+        }
+        else
+        {
+            Console.WriteLine("Agent 2 wins!");
+        }
+    }
+
+
+    private static void cleanUpHistoryOfAgents(WordleAgent agent1, WordleAgent agent2)
+    {
+        agent1.guessCount = 0;
+        agent2.guessCount = 0;
+        agent1.feedbackHistory.Clear();
+        agent2.feedbackHistory.Clear();
+        agent1.firstGuess = true;
+        agent2.firstGuess = true;
     }
 }
