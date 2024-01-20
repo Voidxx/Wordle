@@ -14,15 +14,31 @@ internal class Program
         // Start the WebSocket server
         Task serverTask = Task.Run(() => GameServer.main(args));
 
+        Console.Write("Do you want to participate in the tournament? (yes/no): ");
+        string userResponse = Console.ReadLine().ToLower();
+        bool userParticipates = userResponse == "yes";
         // Prompt user for input
         Console.Write("Enter the number of agents: ");
         int numConnections = int.Parse(Console.ReadLine());
 
 
+
         // Create the desired number of connections and agents
         List<HubConnection> connections = new List<HubConnection>();
         List<WordleAgent> agents = new List<WordleAgent>();
+        if (userParticipates)
+        {
+            HubConnection userConnection = new HubConnectionBuilder()
+                .WithUrl("http://localhost:5000/gamehub")
+                .Build();
 
+            await userConnection.StartAsync();
+
+            string userName = "User";
+            WordleUser user = new WordleUser(userConnection, agents.Count + 1, userName);
+            connections.Add(userConnection);
+            agents.Add(user);
+        }
         for (int i = 0; i < numConnections; i++)
         {
             HubConnection connection = new HubConnectionBuilder()
@@ -148,13 +164,4 @@ internal class Program
     //}
 
 
-    private static void cleanUpHistoryOfAgents(WordleAgent agent1, WordleAgent agent2)
-    {
-        agent1.guessCount = 0;
-        agent2.guessCount = 0;
-        agent1.feedbackHistory.Clear();
-        agent2.feedbackHistory.Clear();
-        agent1.firstGuess = true;
-        agent2.firstGuess = true;
-    }
 }

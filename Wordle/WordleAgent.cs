@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 namespace Wordle
 {
 
-    internal class WordleAgent
+    public class WordleAgent
     {
         public int id;
         public string name;
@@ -23,6 +23,7 @@ namespace Wordle
         public int guessCount = 0;
         public const int guessLimit = 5; // Added guess limit
         public int Wins;
+        public bool isOpponentUser;
 
         public readonly HubConnection _connection;
 
@@ -37,7 +38,7 @@ namespace Wordle
             this.name = name;
             Wins = 0;
         }   
-        public async Task<string> GenerateGuess(string matchId)
+        public virtual async Task<string> GenerateGuess(string matchId)
         {
             if (firstGuess == true)
             {
@@ -55,7 +56,7 @@ namespace Wordle
 
             return currentGuess;
         }
-        public async Task<List<LetterResult>> ReceiveFeedback(string matchId)
+        public virtual async Task<List<LetterResult>> ReceiveFeedback(string matchId)
         {
 
             // Retrieve the feedback from the server
@@ -67,6 +68,32 @@ namespace Wordle
             foreach(LetterResult result in feedback)
             {
                 feedbackHistory.Add(result);
+            }
+            if (isOpponentUser)
+            {
+                Console.WriteLine("-------------------------");
+                foreach (LetterResult item in feedback)
+                {
+                    if (item.Exists == true && item.Position == true)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("[" + item.Letter + "] ");
+                        Console.ResetColor();
+                    }
+                    else if (item.Exists == true && item.Position == false)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write("[" + item.Letter + "] ");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("[" + item.Letter + "] ");
+                        Console.ResetColor();
+                    }
+                }
+                Console.WriteLine("");
             }
 
             return feedback;

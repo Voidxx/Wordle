@@ -77,6 +77,7 @@ namespace Wordle
 
         private async Task<WordleAgent> PlayMatch(WordleAgent agent1, WordleAgent agent2, string matchId)
         {
+
             // Get the SharedState instance for this match
             SharedState sharedState = SharedState.GetInstance(matchId);
 
@@ -88,57 +89,75 @@ namespace Wordle
             {
                 WordleAgent currentAgent = switchAgents ? agent1 : agent2;
                 WordleAgent opponentAgent = switchAgents ? agent2 : agent1;
+                string wordToGuess = "";
+                if(currentAgent is WordleUser)
+                {
+                    while (true)
+                    {
+                        Console.Write("Enter your 5 letter word for the agent to guess: ");
+                        wordToGuess = Console.ReadLine();
 
+                        if (wordToGuess.Length != 5 || wordToGuess.Any(char.IsDigit))
+                        {
+                            Console.WriteLine("Invalid input. Please enter a 5 letter word.");
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
                 // Select a word for the current agent
-                string wordToGuess = currentAgent.possibleWords[new Random().Next(currentAgent.possibleWords.Count)];
+                else
+                    wordToGuess = currentAgent.possibleWords[new Random().Next(currentAgent.possibleWords.Count)];
                 currentAgent.targetWord = wordToGuess;
                 sharedState.TargetWord = wordToGuess;
                 await currentAgent._connection.InvokeAsync("SetTargetWord", wordToGuess, matchId);
-                Console.WriteLine("Agent " + (currentAgent.id) + " selected word: " + wordToGuess);
-                // Switch roles
-                switchAgents = !switchAgents;
+                if(opponentAgent is not WordleUser)
+                    Console.WriteLine("Agent " + (currentAgent.id) + " selected word: " + wordToGuess);
+                else
+                    Console.WriteLine("Your opponent has selected a word. Make your guess.");
 
 
                 string guess;
                 do
                 {
-
+                    if(currentAgent is not WordleUser && opponentAgent is WordleUser)
+                    {
+                        currentAgent.isOpponentUser = true;
+                    }
                     // Current agent tries to guess the word
-                    guess = await currentAgent.GenerateGuess(matchId);
-                    List<LetterResult> feedback = await opponentAgent.ReceiveFeedback(matchId);
+                    guess = await opponentAgent.GenerateGuess(matchId);
+                    List<LetterResult> feedback = await currentAgent.ReceiveFeedback(matchId);
                     foreach (LetterResult letterResult in feedback)
                     {
-                        currentAgent.feedbackHistory.Add(letterResult);
+                        opponentAgent.feedbackHistory.Add(letterResult);
                     }
 
 
                     // Check if the current agent has guessed the word
                     if (guess == wordToGuess)
                     {
-                        winner = true;
+
                         // If the current agent is agent1, increment agent1Wins
                         // Otherwise, increment agent2Wins
                         if (switchAgents)
                         {
+                            Console.WriteLine("Agent " + (agent1.id) + "wins round.");
                             agent1.Wins++;
                         }
                         else
                         {
+                            Console.WriteLine("Agent " + (agent2.id) + "wins round.");
                             agent2.Wins++;
                         }
                     }
 
-                } while (guess != wordToGuess && currentAgent.guessCount < WordleAgent.guessLimit);
-                if (winner == false)
-                {
-                    Console.WriteLine("Agent " + (opponentAgent.id) + "loses round.");
-                }
-                else
-                {
-                    Console.WriteLine("Agent " + (opponentAgent.id) + "wins round!.");
-                    winner = false;
-                }
+                } while (guess != wordToGuess && opponentAgent.guessCount < WordleAgent.guessLimit);
+
                 cleanUpHistoryOfAgents(currentAgent, opponentAgent);
+                // Switch roles
+                switchAgents = !switchAgents;
             }
 
             // Determine the final winner
@@ -147,6 +166,8 @@ namespace Wordle
                 Console.WriteLine(agent1.name + " wins!");
                 agent1.Wins = 0;
                 agent2.Wins = 0;
+                agent1.isOpponentUser = false;
+                agent2.isOpponentUser = false;
                 return agent1;
             }
             else
@@ -154,6 +175,8 @@ namespace Wordle
                 Console.WriteLine(agent2.name + " wins!");
                 agent1.Wins = 0;
                 agent2.Wins = 0;
+                agent1.isOpponentUser = false;
+                agent2.isOpponentUser = false;
                 return agent2;
             }
         }
@@ -165,6 +188,7 @@ namespace Wordle
             agent2.feedbackHistory.Clear();
             agent1.firstGuess = true;
             agent2.firstGuess = true;
+
 
         }
 
