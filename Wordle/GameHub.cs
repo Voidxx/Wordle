@@ -6,32 +6,43 @@ using Wordle;
 public class GameHub : Hub
 {
 
-    public async Task SetTargetWord(string targetWord)
+    public async Task SetTargetWord(string targetWord, string matchId)
     {
+        // Get the SharedState instance for this match
+        SharedState sharedState = SharedState.GetInstance(matchId);
+
         // Store the target word in memory until it's needed
-        SharedState.Instance.targetWord = targetWord;
-    }
-    public async Task ReceiveGuess(string guess)
-    {
-        SharedState.Instance.Guess = guess;
-
+        sharedState.TargetWord = targetWord;
     }
 
-    public async Task<string> ProvideFeedback()
+    public async Task ReceiveGuess(string guess, string matchId)
     {
-        string guess = SharedState.Instance.Guess;
+        // Get the SharedState instance for this match
+        SharedState sharedState = SharedState.GetInstance(matchId);
+
+        sharedState.Guess = guess;
+    }
+    public async Task<string> ProvideFeedback(string matchId)
+    {
+        // Get the SharedState instance for this match
+        SharedState sharedState = SharedState.GetInstance(matchId);
+
+        string guess = sharedState.Guess;
 
         // Process the guess and generate feedback
-        List<LetterResult> feedback = GenerateFeedback(guess);
+        List<LetterResult> feedback = GenerateFeedback(guess, matchId);
 
         // Convert the feedback to a string and return it
         string feedbackString = JsonConvert.SerializeObject(feedback);
         return feedbackString;
     }
-    private List<LetterResult> GenerateFeedback(string guess)
+    private List<LetterResult> GenerateFeedback(string guess, string matchId)
     {
+        // Get the SharedState instance for this match
+        SharedState sharedState = SharedState.GetInstance(matchId);
+
         // Retrieve the target word from memory
-        string targetWord = SharedState.Instance.targetWord;
+        string targetWord = sharedState.TargetWord;
         // Initialize an empty list to hold the feedback
         List<LetterResult> feedback = new List<LetterResult>();
 

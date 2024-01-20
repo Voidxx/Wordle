@@ -1,33 +1,54 @@
 ﻿public class SharedState
 {
-    // Private constructor to prevent other classes from instantiating it
-    private SharedState() { }
+    private static readonly Dictionary<string, SharedState> _instances = new Dictionary<string, SharedState>();
+    private static readonly object _lock = new object();
 
-    // Static variable to hold a reference to the single created instance
-    private static SharedState _instance;
-
-    // Public static means of getting the reference to the single created instance
-    public static SharedState Instance
+    public static SharedState GetInstance(string matchId)
+    {
+        lock (_lock)
+        {
+            if (!_instances.ContainsKey(matchId))
+            {
+                _instances[matchId] = new SharedState();
+            }
+            return _instances[matchId];
+        }
+    }
+    private string _guess;
+    public string Guess
     {
         get
         {
-            // Use lock to ensure thread safety
             lock (_lock)
             {
-                if (_instance == null)
-                {
-                    _instance = new SharedState();
-                }
-                return _instance;
+                return _guess;
+            }
+        }
+        set
+        {
+            lock (_lock)
+            {
+                _guess = value;
             }
         }
     }
 
-    // Field to hold the guess
-    public string Guess { get; set; }
-
-    public string targetWord {  get; set; }
-
-    // Field to hold the lock object
-    private static readonly object _lock = new object();
+    private string _targetWord;
+    public string TargetWord
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _targetWord;
+            }
+        }
+        set
+        {
+            lock (_lock)
+            {
+                _targetWord = value;
+            }
+        }
+    }
 }

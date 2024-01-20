@@ -37,7 +37,7 @@ namespace Wordle
             this.name = name;
             Wins = 0;
         }   
-        public async Task<string> GenerateGuess()
+        public async Task<string> GenerateGuess(string matchId)
         {
             if (firstGuess == true)
             {
@@ -51,15 +51,15 @@ namespace Wordle
             }
             guessCount++; // Increment guess count after generating a guess
 
-            await _connection.InvokeAsync("ReceiveGuess", currentGuess);
+            await _connection.InvokeAsync("ReceiveGuess", currentGuess, matchId);
 
             return currentGuess;
         }
-        public async Task<List<LetterResult>> ReceiveFeedback()
+        public async Task<List<LetterResult>> ReceiveFeedback(string matchId)
         {
 
             // Retrieve the feedback from the server
-            string feedbackString = await _connection.InvokeAsync<string>("ProvideFeedback");
+            string feedbackString = await _connection.InvokeAsync<string>("ProvideFeedback", matchId);
 
             // Deserialize the feedback string into a list of LetterResult objects
             List<LetterResult> feedback = JsonConvert.DeserializeObject<List<LetterResult>>(feedbackString);
@@ -72,34 +72,5 @@ namespace Wordle
             return feedback;
         }
 
-        private List<LetterResult> ParseFeedback(string feedback)
-        {
-            // Split the feedback string into an array of strings
-            string[] feedbackStrings = feedback.Split(',');
-
-            List<LetterResult> feedbackResults = new List<LetterResult>();
-
-            // For each string in the array
-            foreach (string feedbackString in feedbackStrings)
-            {
-                // Split the string into an array of property values
-                string[] propertyValues = feedbackString.Split('|');
-
-                // Create a new LetterResult object
-                LetterResult result = new LetterResult
-                {
-                    Letter = propertyValues[0][0],
-                    Position = bool.Parse(propertyValues[1]),
-                    Exists = bool.Parse(propertyValues[2]),
-                    LetterPosition = int.Parse(propertyValues[3]),
-                    ConfirmedExistence = bool.Parse(propertyValues[4])
-                };
-
-                // Add the LetterResult object to the list
-                feedbackResults.Add(result);
-            }
-
-            return feedbackResults;
-        }
     }
 }

@@ -45,10 +45,12 @@ namespace Wordle
                     WordleAgent agent1 = remainingAgents[i];
                     WordleAgent agent2 = remainingAgents[i + 1];
 
+                    string matchId = $"{agent1.id}-{agent2.id}"; // Unique match ID
+
                     Console.WriteLine($"{agent1.name} vs. {agent2.name}");
 
                     // Create a task for each match
-                    matchTasks.Add(PlayMatch(agent1, agent2));
+                    matchTasks.Add(PlayMatch(agent1, agent2, matchId));
 
                 }
                 // Wait for all matches to complete
@@ -73,9 +75,10 @@ namespace Wordle
             Console.WriteLine($"{finalWinner.name} wins the tournament!");
         }
 
-        private async Task<WordleAgent> PlayMatch(WordleAgent agent1, WordleAgent agent2)
+        private async Task<WordleAgent> PlayMatch(WordleAgent agent1, WordleAgent agent2, string matchId)
         {
-
+            // Get the SharedState instance for this match
+            SharedState sharedState = SharedState.GetInstance(matchId);
 
             // Play best-of-three matches between agent1 and agent2
             bool switchAgents = false;
@@ -89,7 +92,8 @@ namespace Wordle
                 // Select a word for the current agent
                 string wordToGuess = currentAgent.possibleWords[new Random().Next(currentAgent.possibleWords.Count)];
                 currentAgent.targetWord = wordToGuess;
-                await currentAgent._connection.InvokeAsync("SetTargetWord", wordToGuess);
+                sharedState.TargetWord = wordToGuess;
+                await currentAgent._connection.InvokeAsync("SetTargetWord", wordToGuess, matchId);
                 Console.WriteLine("Agent " + (currentAgent.id) + " selected word: " + wordToGuess);
                 // Switch roles
                 switchAgents = !switchAgents;
@@ -98,10 +102,10 @@ namespace Wordle
                 string guess;
                 do
                 {
-                    Thread.Sleep(200);
+
                     // Current agent tries to guess the word
-                    guess = await currentAgent.GenerateGuess();
-                    List<LetterResult> feedback = await opponentAgent.ReceiveFeedback();
+                    guess = await currentAgent.GenerateGuess(matchId);
+                    List<LetterResult> feedback = await opponentAgent.ReceiveFeedback(matchId);
                     foreach (LetterResult letterResult in feedback)
                     {
                         currentAgent.feedbackHistory.Add(letterResult);
@@ -164,18 +168,7 @@ namespace Wordle
 
         }
 
-        private void PrintBracket(List<Bracket> brackets)
-        {
-            foreach (var bracket in brackets)
-            {
-                foreach (var match in bracket.Matches)
-                {
-                    Console.WriteLine($"[{match.Agent1.name}] vs [{match.Agent2.name}]");
-                }
 
-                Console.WriteLine();
-            }
-        }
     }
 
 
