@@ -42,7 +42,6 @@ public class Algorithm
                 filteredWords = filteredWords.Where(word => word[letterResult.LetterPosition] == letterResult.Letter).ToList();
             }
         }
-
         return filteredWords[new Random().Next(filteredWords.Count)];
     }
 

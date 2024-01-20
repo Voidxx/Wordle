@@ -13,6 +13,7 @@ namespace Wordle
     internal class WordleAgent
     {
         public int id;
+        public string name;
         private Algorithm algorithm;
         public List<string> possibleWords;
         private string currentGuess;
@@ -21,10 +22,11 @@ namespace Wordle
         public List<LetterResult> feedbackHistory;
         public int guessCount = 0;
         public const int guessLimit = 5; // Added guess limit
+        public int Wins;
 
         public readonly HubConnection _connection;
 
-        public WordleAgent(HubConnection connection, int id)
+        public WordleAgent(HubConnection connection, int id, string name)
         {
             _connection = connection;
             algorithm = new Algorithm();
@@ -32,7 +34,9 @@ namespace Wordle
             targetWord = "";
             feedbackHistory = new List<LetterResult>();
             this.id = id;
-        }
+            this.name = name;
+            Wins = 0;
+        }   
         public async Task<string> GenerateGuess()
         {
             if (firstGuess == true)

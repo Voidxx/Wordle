@@ -14,32 +14,40 @@ internal class Program
         // Start the WebSocket server
         Task serverTask = Task.Run(() => GameServer.main(args));
 
-        // Initialize the two agents
-        HubConnection connection1 = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5000/gamehub")
-            .Build();
+        // Prompt user for input
+        Console.Write("Enter the number of agents: ");
+        int numConnections = int.Parse(Console.ReadLine());
 
-        await connection1.StartAsync();
 
-        WordleAgent agent1 = new WordleAgent(connection1, 1);
+        // Create the desired number of connections and agents
+        List<HubConnection> connections = new List<HubConnection>();
+        List<WordleAgent> agents = new List<WordleAgent>();
 
-        HubConnection connection2 = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5000/gamehub")
-            .Build();
+        for (int i = 0; i < numConnections; i++)
+        {
+            HubConnection connection = new HubConnectionBuilder()
+                .WithUrl("http://localhost:5000/gamehub")
+                .Build();
 
-        await connection2.StartAsync();
+            await connection.StartAsync();
 
-        WordleAgent agent2 = new WordleAgent(connection2, 2);
+            connections.Add(connection);
+
+            string agentName = "Agent " + (i + 1);
+            WordleAgent agent = new WordleAgent(connection, agents.Count + 1, agentName);
+            agents.Add(agent);
+        }
 
         // Initialize counters for each agent
-        int agent1Wins = 0;
-        int agent2Wins = 0;
+        int[] agentWins = new int[numConnections];
+        for (int i = 0; i < numConnections; i++)
+        {
+            agentWins[i] = 0;
+        }
 
-        // Initialize switch variable
-        bool switchAgents = false;
-
-        // Start the game loop
-        await gameLoop(agent1, agent2, agent1Wins, agent2Wins, switchAgents);
+        // Start the tournament
+        Tournament tournament = new Tournament(agents, 5);
+        tournament.RunTournament();
 
         // Stop the WebSocket server
         await serverTask;
