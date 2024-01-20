@@ -26,7 +26,7 @@ namespace Wordle
 
             for (int round = 0; round < numRounds; round++)
             {
-                if(remainingAgents.Count == 1)
+                if (remainingAgents.Count == 1)
                 {
                     Console.WriteLine($"{remainingAgents[0].name} wins the tournament!");
                     break;
@@ -38,7 +38,13 @@ namespace Wordle
 
                 List<WordleAgent> nextRound = new List<WordleAgent>();
                 List<Task<WordleAgent>> matchTasks = new List<Task<WordleAgent>>();
+                IOutputStrategy strategy = new AgentOnlyOutputStrategy();
 
+                foreach (WordleAgent agent in remainingAgents)
+                {
+                    if (agent is WordleUser)
+                        strategy = new UserAndAgentOutputStrategy();
+                }
 
                 for (int i = 0; i < remainingAgents.Count; i += 2)
                 {
@@ -49,9 +55,8 @@ namespace Wordle
 
                     Console.WriteLine($"{agent1.name} vs. {agent2.name}");
 
-                    // Create a task for each match
-                    matchTasks.Add(PlayMatch(agent1, agent2, matchId));
 
+                    matchTasks.Add(PlayMatch(agent1, agent2, matchId, strategy));
                 }
                 // Wait for all matches to complete
                 WordleAgent[] winners = await Task.WhenAll(matchTasks);
@@ -75,22 +80,21 @@ namespace Wordle
             Console.WriteLine($"{finalWinner.name} wins the tournament!");
         }
 
-        private async Task<WordleAgent> PlayMatch(WordleAgent agent1, WordleAgent agent2, string matchId)
+        private async Task<WordleAgent> PlayMatch(WordleAgent agent1, WordleAgent agent2, string matchId, IOutputStrategy outputStrategy)
         {
-
             // Get the SharedState instance for this match
             SharedState sharedState = SharedState.GetInstance(matchId);
 
             // Play best-of-three matches between agent1 and agent2
             bool switchAgents = false;
-            bool winner = false;
 
             while (agent1.Wins < 2 && agent2.Wins < 2)
             {
                 WordleAgent currentAgent = switchAgents ? agent1 : agent2;
                 WordleAgent opponentAgent = switchAgents ? agent2 : agent1;
                 string wordToGuess = "";
-                if(currentAgent is WordleUser)
+
+                if (currentAgent is WordleUser)
                 {
                     while (true)
                     {
@@ -113,16 +117,12 @@ namespace Wordle
                 currentAgent.targetWord = wordToGuess;
                 sharedState.TargetWord = wordToGuess;
                 await currentAgent._connection.InvokeAsync("SetTargetWord", wordToGuess, matchId);
-                if(opponentAgent is not WordleUser)
-                    Console.WriteLine("Agent " + (currentAgent.id) + " selected word: " + wordToGuess);
-                else
-                    Console.WriteLine("Your opponent has selected a word. Make your guess.");
-
+                outputStrategy.DisplayMessage(currentAgent, opponentAgent, wordToGuess);
 
                 string guess;
                 do
                 {
-                    if(currentAgent is not WordleUser && opponentAgent is WordleUser)
+                    if (currentAgent is not WordleUser && opponentAgent is WordleUser)
                     {
                         currentAgent.isOpponentUser = true;
                     }
@@ -134,21 +134,18 @@ namespace Wordle
                         opponentAgent.feedbackHistory.Add(letterResult);
                     }
 
+                    outputStrategy.DisplayGuessMessage(currentAgent, opponentAgent, guess);
 
                     // Check if the current agent has guessed the word
                     if (guess == wordToGuess)
                     {
-
-                        // If the current agent is agent1, increment agent1Wins
-                        // Otherwise, increment agent2Wins
+                        outputStrategy.DisplayWinningMessage(currentAgent, opponentAgent);
                         if (switchAgents)
                         {
-                            Console.WriteLine("Agent " + (agent1.id) + "wins round.");
                             agent1.Wins++;
                         }
                         else
                         {
-                            Console.WriteLine("Agent " + (agent2.id) + "wins round.");
                             agent2.Wins++;
                         }
                     }
@@ -161,26 +158,14 @@ namespace Wordle
             }
 
             // Determine the final winner
-            if (agent1.Wins > agent2.Wins)
-            {
-                Console.WriteLine(agent1.name + " wins!");
-                agent1.Wins = 0;
-                agent2.Wins = 0;
-                agent1.isOpponentUser = false;
-                agent2.isOpponentUser = false;
-                return agent1;
-            }
-            else
-            {
-                Console.WriteLine(agent2.name + " wins!");
-                agent1.Wins = 0;
-                agent2.Wins = 0;
-                agent1.isOpponentUser = false;
-                agent2.isOpponentUser = false;
-                return agent2;
-            }
+            WordleAgent winner = agent2.Wins > agent1.Wins ? agent1 : agent2;
+            WordleAgent loser = agent2.Wins < agent1.Wins ? agent1 : agent2;
+            outputStrategy.DisplayFinalMessage(winner, loser);
+            winner.Wins = 0;
+            winner.isOpponentUser = false;
+            return winner;
         }
-            private static void cleanUpHistoryOfAgents(WordleAgent agent1, WordleAgent agent2)
+        private static void cleanUpHistoryOfAgents(WordleAgent agent1, WordleAgent agent2)
         {
             agent1.guessCount = 0;
             agent2.guessCount = 0;

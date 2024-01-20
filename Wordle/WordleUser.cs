@@ -12,8 +12,19 @@ public class WordleUser : WordleAgent
 
     public override async Task<string> GenerateGuess(string matchId)
     {
-        Console.Write("Enter your guess: ");
-        string guess = Console.ReadLine();
+        string guess;
+        do
+        {
+            Console.Write("Enter your guess: ");
+            guess = Console.ReadLine();
+
+            // Check if the guess is in the list of possible words
+            if (!possibleWords.Contains(guess))
+            {
+                Console.WriteLine("Your guess must be a 5 letter word from the list of possible words.");
+            }
+        } while (!possibleWords.Contains(guess));
+
         await _connection.InvokeAsync("ReceiveGuess", guess, matchId);
         guessCount++;
         return guess;
