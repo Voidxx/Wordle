@@ -9,7 +9,7 @@ public class AgentOnlyOutputStrategy : IOutputStrategy
 
     public void DisplayWinningMessage(WordleAgent currentAgent, WordleAgent opponentAgent)
     {
-        Console.WriteLine(currentAgent.name + " wins the round!");
+        Console.WriteLine(opponentAgent.name + " wins the round!");
     }
 
     public void DisplayFinalMessage(WordleAgent winner, WordleAgent loser)

@@ -21,7 +21,7 @@ namespace Wordle
         public bool firstGuess = true;
         public List<LetterResult> feedbackHistory;
         public int guessCount = 0;
-        public const int guessLimit = 5; // Added guess limit
+        public const int guessLimit = 5;
         public int Wins;
         public bool isOpponentUser;
 
@@ -47,10 +47,9 @@ namespace Wordle
             }
             else
             {
-                // Update algorithm with guess count and limit
                 currentGuess = algorithm.GuessWord(feedbackHistory, guessLimit - guessCount);
             }
-            guessCount++; // Increment guess count after generating a guess
+            guessCount++;
 
             await _connection.InvokeAsync("ReceiveGuess", currentGuess, matchId);
 
@@ -59,10 +58,8 @@ namespace Wordle
         public virtual async Task<List<LetterResult>> ReceiveFeedback(string matchId)
         {
 
-            // Retrieve the feedback from the server
             string feedbackString = await _connection.InvokeAsync<string>("ProvideFeedback", matchId);
 
-            // Deserialize the feedback string into a list of LetterResult objects
             List<LetterResult> feedback = JsonConvert.DeserializeObject<List<LetterResult>>(feedbackString);
 
             foreach(LetterResult result in feedback)

@@ -1,0 +1,4 @@
+Aplikacija se otvara i pokreće uz pomoć Visual Studio programa. Korisnik treba prvo unijeti da li želi sudjelovati u turniru ili ne.
+Broj agenata mora biti u okviru mogućih brojeva za turnire (da ostane na kraju jedan pobjednik), što znači 2, 4, 8, 16, 32, itd. Ako
+korisnik igra, taj broj mora biti n-1 jer korisnik se računa kao dodatni agent. Ako korisnik ne igra, automatski se odigra turnir
+i određuje se pobjednik.

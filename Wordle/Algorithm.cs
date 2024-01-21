@@ -8,7 +8,6 @@ public class Algorithm
 
     public string GuessWord(List<LetterResult> feedback, int guessesLeft)
     {
-        // Different strategies based on the number of guesses left
         if (guessesLeft > 3)
         {
             return EliminateImpossibleWords(feedback);
@@ -51,7 +50,6 @@ public class Algorithm
         var potentialWords = new List<string>(possibleWords);
         Dictionary<string, int> wordScores = new Dictionary<string, int>();
 
-        // Get the letters used in the current round
         var usedLetters = feedback.Select(fr => fr.Letter).Distinct();
 
         foreach (var word in potentialWords)
@@ -65,7 +63,6 @@ public class Algorithm
                 }
             }
 
-            // Exclude words that contain any of the used letters
             bool containsUsedLetters = usedLetters.Any(letter => word.Contains(letter));
             if (containsUsedLetters) continue;
 
